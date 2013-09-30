@@ -18,6 +18,12 @@
                         '<span title="<%= usersSeen %>"><%= app.utils.formatNumber(usersSeen) %></span>' +
                     '</span>' +
                     '<% } %>' +
+                    '<% $.each(annotations, function(key, count) { %>' +
+                    '<span class="tag annotation" data-count="<%= app.utils.formatNumber(count) %>">' +
+                        '<i><%= key %></i>' +
+                        '<span title="<%= count %>"><%= app.utils.formatNumber(count) %></span>' +
+                    '</span>' +
+                    '<% }) %>' +
                     '<span class="last-seen pretty-date" title="<%= lastSeen %>"><%= app.utils.prettyDate(lastSeen) %></span>' +
                     '<% if (timeSpent) { %>' +
                         '<span class="time-spent"><%= Math.round(timeSpent) %>ms</span>' +

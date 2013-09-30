@@ -9,6 +9,7 @@
             count: 0,
             version: 0,
             usersSeen: null,
+            annotations: {},
             tags: [],
             versions: [],
             hasSeen: false,

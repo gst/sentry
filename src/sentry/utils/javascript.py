@@ -7,11 +7,16 @@ sentry.utils.javascript
 """
 import time
 
+from collections import defaultdict
+
 from django.core.urlresolvers import reverse
 from django.utils.html import escape
+
 from sentry.app import env
 from sentry.constants import STATUS_RESOLVED
-from sentry.models import Group, GroupBookmark, GroupTagKey, GroupSeen
+from sentry.models import (
+    Group, GroupBookmark, GroupTagKey, GroupSeen, ProjectOption
+)
 from sentry.templatetags.sentry_plugins import get_tags
 from sentry.utils import json
 from sentry.utils.db import attach_foreignkey
@@ -92,10 +97,23 @@ class GroupTransformer(Transformer):
         else:
             historical_data = {}
 
-        user_counts = dict(GroupTagKey.objects.filter(
+        project_list = set(o.project for o in objects)
+        tag_keys = set(['sentry:user'])
+        project_annotations = {}
+        for project in project_list:
+            enabled_annotations = ProjectOption.objects.get_value(
+                project, 'annotations', ())
+            project_annotations[project] = enabled_annotations
+            tag_keys.update(enabled_annotations)
+
+        annotation_counts = defaultdict(dict)
+        annotation_results = GroupTagKey.objects.filter(
             group__in=objects,
-            key='sentry:user',
-        ).values_list('group', 'values_seen'))
+            key__in=tag_keys,
+        ).values_list('key', 'group', 'values_seen')
+        for key, group_id, values_seen in annotation_results:
+            annotation_counts[key][group_id] = values_seen
+        user_counts = annotation_counts.get('sentry:user')
 
         for g in objects:
             g.is_bookmarked = g.pk in bookmarks
@@ -104,6 +122,18 @@ class GroupTransformer(Transformer):
                 g.users_seen = user_counts.get(g.id, 0)
             active_date = g.active_at or g.last_seen
             g.has_seen = seen_groups.get(g.id, active_date) > active_date
+            g.annotations = {}
+            for key in tag_keys:
+                if key in project_annotations[project]:
+                    # TODO(dcramer): we need to allow the users to define this
+                    if key == 'server_name':
+                        label = 'servers'
+                    else:
+                        label = key + 's'
+                    try:
+                        g.annotations[label] = annotation_counts[key].get(g.id, 0)
+                    except KeyError:
+                        g.annotations[label] = 0
 
     def transform(self, obj, request=None):
         d = {
@@ -136,6 +166,8 @@ class GroupTransformer(Transformer):
             d['hasSeen'] = obj.has_seen
         if hasattr(obj, 'historical_data'):
             d['historicalData'] = obj.historical_data
+        if hasattr(obj, 'annotations'):
+            d['annotations'] = obj.annotations
         if request:
             d['tags'] = list(get_tags(obj, request))
         return d
