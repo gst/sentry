@@ -5987,7 +5987,7 @@ disabled look for already selected choices in the results dropdown
   display: none;
 }
 .select2-more-results.select2-active {
-  background: #f4f4f4 url('spinner.gif') no-repeat 100%;
+  background: #f4f4f4 url('../scripts/lib/select2/spinner.gif') no-repeat 100%;
 }
 .select2-more-results {
   background: #f4f4f4;
